@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: quantum-backend
+    environment:
+      - PORT=5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - quantum-net
+
+  frontend:
+    build: .
+    container_name: quantum-frontend
+    environment:
+      - NODE_ENV=production
+    networks:
+      - quantum-net
+
+  nginx:
+    build: .
+    container_name: quantum-nginx
+    ports:
+      - "80:80"
+    networks:
+      - quantum-net
+
+networks:
+  quantum-net:
+    driver: bridge
