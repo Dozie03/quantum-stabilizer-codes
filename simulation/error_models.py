@@ -1,4 +1,6 @@
-from qiskit.providers.aer import noise
+from qiskit import Aer
+
+noise = Aer.noise
 
 def depolarizing_error_model(error_rate, num_qubits):
     error = noise.depolarizing_error(error_rate, 1)
