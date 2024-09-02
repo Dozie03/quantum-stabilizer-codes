@@ -5,8 +5,10 @@ import ResultDisplay from './components/ResultDisplay';
 import './App.css';
 
 function App() {
+    // State to hold the simulation result
     const [result, setResult] = useState(null);
 
+    // Callback function to update the result state
     const handleResult = (data) => {
         setResult(data);
     };
