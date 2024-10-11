@@ -54,6 +54,13 @@ def generate_qiskit_circuit(x_part, z_part):
 
     return qc
 
+def count_swap_gates(circuit):
+    """
+    Counts the number of SWAP gates in the circuit.
+    """
+    swap_count = sum(1 for gate in circuit.data if gate.operation.name == 'swap')
+    return swap_count
+
 def qiskit_to_stim(qc):
     """
     Converts a Qiskit QuantumCircuit into a stim circuit string.
@@ -169,6 +176,10 @@ if __name__ == "__main__":
     
     optimized_qc = transpile(qc, coupling_map=coupling_map, optimization_level=3)
 
+    # Count SWAP gates in original and optimized circuits
+    original_swap_count = count_swap_gates(qc)
+    optimized_swap_count = count_swap_gates(optimized_qc)
+
     # Visualize the original and optimized circuits in one window
     visualize_circuits(qc, optimized_qc)
 
@@ -180,3 +191,11 @@ if __name__ == "__main__":
     
     # Run the STIM simulation
     run_stim_simulation(stim_circuit_string)
+
+    # Compare before and after optimization
+    original_depth = qc.depth()
+    optimized_depth = optimized_qc.depth()
+
+    # Output comparison
+    print(f"Original Circuit Depth: {original_depth}, Optimized Circuit Depth: {optimized_depth}")
+    print(f"Original SWAP Gates: {original_swap_count}, Optimized SWAP Gates: {optimized_swap_count}")
