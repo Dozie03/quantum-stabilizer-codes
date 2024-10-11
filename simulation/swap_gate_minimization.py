@@ -1,4 +1,5 @@
-from qiskit import QuantumCircuit
+from qiskit import QuantumCircuit, transpile
+from qiskit.transpiler import CouplingMap  # Importing CouplingMap
 import matplotlib.pyplot as plt
 import stim
 import random
@@ -52,13 +53,6 @@ def generate_qiskit_circuit(x_part, z_part):
         qc.measure(row, row)  # Measure row qubits into classical bits
 
     return qc
-
-def visualize_qiskit_circuit(qc):
-    """
-    Visualizes a Qiskit QuantumCircuit using matplotlib.
-    """
-    qc.draw(output='mpl')
-    plt.show()
 
 def qiskit_to_stim(qc):
     """
@@ -130,6 +124,24 @@ def run_stim_simulation(string_circuit):
     # Print the noisy samples
     print(noisy_samples)
 
+def visualize_circuits(qc, optimized_qc):
+    """
+    Visualizes both the original and optimized quantum circuits, 
+    with the optimized circuit shown larger than the original circuit.
+    """
+    fig, axs = plt.subplots(2, 1, figsize=(10, 12))  # Increased the figure height to enlarge the bottom circuit
+
+    # Draw original circuit in the top subplot
+    qc.draw(output='mpl', ax=axs[0])  
+    axs[0].set_title("Original Circuit (Before Optimization)")
+
+    # Draw optimized circuit in the bottom subplot with larger height
+    optimized_qc.draw(output='mpl', ax=axs[1])
+    axs[1].set_title("Optimized Circuit (After Optimization)")
+
+    plt.tight_layout()
+    plt.show()
+
 # Example usage
 if __name__ == "__main__":
     # Example stabilizer matrix (X | Z)
@@ -151,12 +163,20 @@ if __name__ == "__main__":
     # Generate the Qiskit circuit based on stabilizer matrix
     qc = generate_qiskit_circuit(x_part, z_part)
     
-    # Visualize the Qiskit circuit
-    visualize_qiskit_circuit(qc)
+    # Optimize the circuit using Qiskit's transpile function
+    coupling_list = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8)]
+    coupling_map = CouplingMap(couplinglist=coupling_list)  # Fixing the missing import issue
     
+    optimized_qc = transpile(qc, coupling_map=coupling_map, optimization_level=3)
+
+    # Visualize the original and optimized circuits in one window
+    visualize_circuits(qc, optimized_qc)
+
     # Convert the Qiskit circuit to a Stim circuit string
-    stim_circuit_string = qiskit_to_stim(qc)
+    stim_circuit_string = qiskit_to_stim(optimized_qc)
     
     # Output the Stim circuit
     print("Stim Circuit:\n", stim_circuit_string)
+    
+    # Run the STIM simulation
     run_stim_simulation(stim_circuit_string)
