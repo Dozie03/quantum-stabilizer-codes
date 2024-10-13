@@ -113,6 +113,7 @@ def main():
     coupling_map = matrix_to_coupling_map(matrix)
 
     print("\nCoupling Map Edges:", coupling_map.get_edges())
+    return coupling_map
 
 # run simulation
 
