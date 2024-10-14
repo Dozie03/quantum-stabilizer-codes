@@ -1,158 +1,104 @@
 from qiskit import QuantumCircuit, transpile
-from qiskit.transpiler import CouplingMap  # Importing CouplingMap
+from qiskit.transpiler import CouplingMap
 import matplotlib.pyplot as plt
 import stim
 import random
 
 # Dictionary to map Qiskit gates to Stim gates
 gate_mapping = {
-    'h': 'H',       # Hadamard
-    'x': 'X',       # Pauli-X
-    'z': 'Z',       # Pauli-Z
-    'cx': 'CNOT',   # CNOT
-    'cz': 'CZ',     # CZ
-    'measure': 'M'  # Measurement
+    'h': 'H',
+    'x': 'X',
+    'z': 'Z',
+    'cx': 'CNOT',
+    'cz': 'CZ',
+    'measure': 'M'
 }
 
-def generate_qiskit_circuit(x_part, z_part):
-    """
-    Generates a Qiskit QuantumCircuit based on the input X and Z stabilizer matrices
-    with the specified gate logic and measurements.
-    """
-    rows = len(x_part)     # Number of row qubits
-    cols = len(x_part[0])  # Number of column qubits
-    n_qubits = rows + cols  # Total qubits = rows + columns
-    n_classical_bits = rows  # Classical bits equal to the number of row qubits
+def create_fully_connected_coupling_map(num_qubits):
+    """Creates a fully connected coupling map for a given number of qubits."""
+    return CouplingMap(couplinglist=[(i, j) for i in range(num_qubits) for j in range(i + 1, num_qubits)])
 
-    # Create a quantum circuit with n_qubits and n_classical_bits
+def compute_qubit_usage(matrix):
+    """Returns the number of times each qubit (column) is used."""
+    usage_count = [sum(col) for col in zip(*matrix)]
+    return usage_count
+
+def compute_stabilizer_weight(matrix):
+    """Returns the weight of each stabilizer (row)."""
+    stabilizer_weights = [sum(row) for row in matrix]
+    return stabilizer_weights
+
+def generate_qiskit_circuit(x_part, z_part):
+    rows = len(x_part)
+    cols = len(x_part[0])
+    n_qubits = rows + cols
+    n_classical_bits = rows
+
     qc = QuantumCircuit(n_qubits, n_classical_bits)
 
-    # Step 1: Place Hadamard gates on all row qubits
     for row in range(rows):
         qc.h(row)
 
-    # Step 2: Apply CNOT, CZ, and CY gates based on the logic provided
     for row in range(rows):
         for col in range(cols):
-            row_qubit = row  # Row qubits are in the first 'rows' qubits
-            col_qubit = rows + col  # Column qubits start after row qubits
-
+            row_qubit = row
+            col_qubit = rows + col
             if x_part[row][col] == 1 and z_part[row][col] == 0:
-                qc.cx(row_qubit, col_qubit)  # CNOT gate
+                qc.cx(row_qubit, col_qubit)
             elif x_part[row][col] == 0 and z_part[row][col] == 1:
-                qc.cz(row_qubit, col_qubit)  # CZ gate
-            elif x_part[row][col] == 1 and z_part[row][col] == 1:
-                qc.cy(row_qubit, col_qubit)  # CY gate
+                qc.cz(row_qubit, col_qubit)
 
-    # Step 3: Add Hadamard gates on all row qubits again
     for row in range(rows):
         qc.h(row)
 
-    # Step 4: Add measurement gates to all row qubits
     for row in range(rows):
-        qc.measure(row, row)  # Measure row qubits into classical bits
+        qc.measure(row, row)
 
     return qc
 
 def count_swap_gates(circuit):
-    """
-    Counts the number of SWAP gates in the circuit.
-    """
-    swap_count = sum(1 for gate in circuit.data if gate.operation.name == 'swap')
-    return swap_count
+    return sum(1 for gate in circuit.data if gate.operation.name == 'swap')
 
 def qiskit_to_stim(qc):
-    """
-    Converts a Qiskit QuantumCircuit into a stim circuit string.
-    """
     stim_circuit = []
-    
-    # Iterate over the instructions in the Qiskit circuit
     for instruction in qc.data:
-        gate = instruction.operation.name    # Gate name
-        qubits = instruction.qubits          # Qubits the gate acts on
-        
-        # Get the corresponding stim gate from the mapping
+        gate = instruction.operation.name
+        qubits = instruction.qubits
         stim_gate = gate_mapping.get(gate.lower(), None)
-        
         if stim_gate:
-            # Extract the qubit indices using the correct _index attribute
-            qubit_indices = [q._index for q in qubits]  # Use _index attribute
-            
-            # Build the stim gate string
+            qubit_indices = [q._index for q in qubits]
             if len(qubit_indices) == 1:
                 stim_circuit.append(f"{stim_gate} {qubit_indices[0]}")
             elif len(qubit_indices) > 1:
                 stim_circuit.append(f"{stim_gate} {' '.join(map(str, qubit_indices))}")
-    
     return "\n".join(stim_circuit)
 
 def run_stim_simulation(string_circuit):
-    # Create the stim circuit
     circuit = stim.Circuit(string_circuit)
-
-    # Create a TableauSimulator for simulating the circuit
     simulator = stim.TableauSimulator()
-
-    # Initialize the simulator with the circuit
     simulator.do(circuit)
 
-    # Determine the number of qubits by checking the highest index in the circuit
-    num_qubits = 0
-    for instruction in circuit:
-        for target in instruction.targets_copy():
-            if target.is_qubit_target:
-                num_qubits = max(num_qubits, target.value + 1)  # Adjust for 0-based indexing
-
-    # Set the number of shots (samples)
+    num_qubits = max(target.value for instruction in circuit for target in instruction.targets_copy() if target.is_qubit_target) + 1
     num_shots = 100
 
-    # Collect samples by measuring each qubit individually for each shot
     samples = []
     for _ in range(num_shots):
-        single_sample = []
-        for qubit in range(num_qubits):
-            measurement = simulator.measure(qubit)  # Measure each qubit individually
-            single_sample.append(measurement)
-        samples.append(single_sample)
+        sample = [simulator.measure(qubit) for qubit in range(num_qubits)]
+        noisy_sample = [1 - bit if random.uniform(0, 1) < 0.01 else bit for bit in sample]
+        samples.append(noisy_sample)
 
-    # Apply depolarizing noise manually to the samples
-    noisy_samples = []
-    for sample in samples:
-        noisy_sample = []
-        for bit in sample:
-            # Add depolarizing noise with 1% probability
-            if random.uniform(0, 1) < 0.01:  # Use Python's random.uniform for noise
-                noisy_sample.append(1 - bit)  # Flip the bit (introduce noise)
-            else:
-                noisy_sample.append(bit)
-        noisy_samples.append(noisy_sample)
-
-    # Print the noisy samples
-    print(noisy_samples)
+    print(samples)
 
 def visualize_circuits(qc, optimized_qc):
-    """
-    Visualizes both the original and optimized quantum circuits, 
-    with the optimized circuit shown larger than the original circuit.
-    """
-    fig, axs = plt.subplots(2, 1, figsize=(10, 12))  # Increased the figure height to enlarge the bottom circuit
-
-    # Draw original circuit in the top subplot
-    qc.draw(output='mpl', ax=axs[0])  
+    fig, axs = plt.subplots(2, 1, figsize=(10, 12))
+    qc.draw(output='mpl', ax=axs[0])
     axs[0].set_title("Original Circuit (Before Optimization)")
-
-    # Draw optimized circuit in the bottom subplot with larger height
     optimized_qc.draw(output='mpl', ax=axs[1])
     axs[1].set_title("Optimized Circuit (After Optimization)")
-
     plt.tight_layout()
     plt.show()
 
-# Example usage
-if __name__ == "__main__":
-    # Example stabilizer matrix (X | Z)
-
+def main():
     x_part = [
         [1, 0, 1, 0, 1],
         [0, 0, 1, 1, 0],
@@ -167,35 +113,40 @@ if __name__ == "__main__":
         [0, 1, 1, 1, 1]
     ]
     
-    # Generate the Qiskit circuit based on stabilizer matrix
+    # Compute proxy metrics based on Tanner graph analysis
+    qubit_usage = compute_qubit_usage(x_part + z_part)
+    stabilizer_weights = compute_stabilizer_weight(x_part + z_part)
+
+    print(f"Qubit Usage: {qubit_usage}")
+    print(f"Stabilizer Weights: {stabilizer_weights}")
+    
     qc = generate_qiskit_circuit(x_part, z_part)
     
-    # Optimize the circuit using Qiskit's transpile function
-    coupling_list = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8)]
-    coupling_map = CouplingMap(couplinglist=coupling_list)  # Fixing the missing import issue
+    num_qubits = 9  # Adjust to match your circuit
+    coupling_map = create_fully_connected_coupling_map(num_qubits)  # Fully connected map
     
-    optimized_qc = transpile(qc, coupling_map=coupling_map, optimization_level=3)
+    for level in range(4):
+        print(f"\nRunning with optimization level {level}...")
+        optimized_qc = transpile(qc, coupling_map=coupling_map, optimization_level=level)
 
-    # Count SWAP gates in original and optimized circuits
-    original_swap_count = count_swap_gates(qc)
-    optimized_swap_count = count_swap_gates(optimized_qc)
+        original_swap_count = count_swap_gates(qc)
+        optimized_swap_count = count_swap_gates(optimized_qc)
 
-    # Visualize the original and optimized circuits in one window
-    visualize_circuits(qc, optimized_qc)
+        visualize_circuits(qc, optimized_qc)
 
-    # Convert the Qiskit circuit to a Stim circuit string
-    stim_circuit_string = qiskit_to_stim(optimized_qc)
-    
-    # Output the Stim circuit
-    print("Stim Circuit:\n", stim_circuit_string)
-    
-    # Run the STIM simulation
-    run_stim_simulation(stim_circuit_string)
+        stim_circuit_string = qiskit_to_stim(optimized_qc)
+        print("Stim Circuit:\n", stim_circuit_string)
 
-    # Compare before and after optimization
-    original_depth = qc.depth()
-    optimized_depth = optimized_qc.depth()
+        run_stim_simulation(stim_circuit_string)
 
-    # Output comparison
-    print(f"Original Circuit Depth: {original_depth}, Optimized Circuit Depth: {optimized_depth}")
-    print(f"Original SWAP Gates: {original_swap_count}, Optimized SWAP Gates: {optimized_swap_count}")
+        original_depth = qc.depth()
+        optimized_depth = optimized_qc.depth()
+
+        print(f"Original Circuit Depth: {original_depth}, Optimized Circuit Depth: {optimized_depth}")
+        print(f"Original SWAP Gates: {original_swap_count}, Optimized SWAP Gates: {optimized_swap_count}")
+        print(f"Qubit Usage: {qubit_usage}")
+        print(f"Stabilizer Weights: {stabilizer_weights}")
+
+if __name__ == "__main__":
+    main()
+
