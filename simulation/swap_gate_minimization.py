@@ -87,7 +87,7 @@ def run_stim_simulation(string_circuit):
         noisy_sample = [1 - bit if random.uniform(0, 1) < 0.01 else bit for bit in sample]
         samples.append(noisy_sample)
 
-    print(samples)
+    # print(samples)
 
 def visualize_circuits(qc, optimized_qc):
     fig, axs = plt.subplots(2, 1, figsize=(10, 12))
@@ -98,55 +98,79 @@ def visualize_circuits(qc, optimized_qc):
     plt.tight_layout()
     plt.show()
 
-def main():
-    x_part = [
+def main(x_part = [
         [1, 0, 1, 0, 1],
         [0, 0, 1, 1, 0],
         [0, 1, 1, 1, 1],
         [0, 0, 0, 0, 0]
-    ]
-    
-    z_part = [
+    ], z_part = [
         [0, 0, 1, 1, 0],
         [1, 0, 0, 1, 1],
         [0, 0, 0, 0, 0],
         [0, 1, 1, 1, 1]
-    ]
+    ]):
+    # x_part = [
+    #     [1, 0, 1, 0, 1],
+    #     [0, 0, 1, 1, 0],
+    #     [0, 1, 1, 1, 1],
+    #     [0, 0, 0, 0, 0]
+    # ]
     
-    # Compute proxy metrics based on Tanner graph analysis
+    # z_part = [
+    #     [0, 0, 1, 1, 0],
+    #     [1, 0, 0, 1, 1],
+    #     [0, 0, 0, 0, 0],
+    #     [0, 1, 1, 1, 1]
+    # ]
+    
     qubit_usage = compute_qubit_usage(x_part + z_part)
     stabilizer_weights = compute_stabilizer_weight(x_part + z_part)
 
-    print(f"Qubit Usage: {qubit_usage}")
-    print(f"Stabilizer Weights: {stabilizer_weights}")
+    # print(f"Qubit Usage: {qubit_usage}")
+    # print(f"Stabilizer Weights: {stabilizer_weights}")
     
     qc = generate_qiskit_circuit(x_part, z_part)
     
     num_qubits = 9  # Adjust to match your circuit
     coupling_map = create_fully_connected_coupling_map(num_qubits)  # Fully connected map
     
+    best_optimized_qc = None
+    lowest_depth = float('inf')
+    
     for level in range(4):
-        print(f"\nRunning with optimization level {level}...")
+        # print(f"\nRunning with optimization level {level}...")
         optimized_qc = transpile(qc, coupling_map=coupling_map, optimization_level=level)
 
         original_swap_count = count_swap_gates(qc)
         optimized_swap_count = count_swap_gates(optimized_qc)
 
-        visualize_circuits(qc, optimized_qc)
+        # visualize_circuits(qc, optimized_qc)
 
         stim_circuit_string = qiskit_to_stim(optimized_qc)
-        print("Stim Circuit:\n", stim_circuit_string)
+        # print("Stim Circuit:\n", stim_circuit_string)
 
         run_stim_simulation(stim_circuit_string)
 
         original_depth = qc.depth()
         optimized_depth = optimized_qc.depth()
 
-        print(f"Original Circuit Depth: {original_depth}, Optimized Circuit Depth: {optimized_depth}")
-        print(f"Original SWAP Gates: {original_swap_count}, Optimized SWAP Gates: {optimized_swap_count}")
-        print(f"Qubit Usage: {qubit_usage}")
-        print(f"Stabilizer Weights: {stabilizer_weights}")
+        # print(f"Original Circuit Depth: {original_depth}, Optimized Circuit Depth: {optimized_depth}")
+        # print(f"Original SWAP Gates: {original_swap_count}, Optimized SWAP Gates: {optimized_swap_count}")
+        # print(f"Qubit Usage: {qubit_usage}")
+        # print(f"Stabilizer Weights: {stabilizer_weights}")
+
+        if optimized_depth < lowest_depth:
+            lowest_depth = optimized_depth
+            best_optimized_qc = optimized_qc
+
+    # print("\nMost optimized circuit:")
+    # print(f"Optimization level: {best_optimized_qc.metadata['optimization_level']}")
+    # print(f"Circuit depth: {lowest_depth}")
+    # best_optimized_qc.draw(output='mpl')
+    # plt.show()
+
+    return best_optimized_qc
 
 if __name__ == "__main__":
-    main()
+    most_optimized_circuit = main()
 
