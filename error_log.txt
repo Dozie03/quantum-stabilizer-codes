@@ -1,0 +1,25 @@
+Error occurred: The circuit contains non-deterministic detectors.
+
+To make an SVG picture of the problem, you can use the python API like this:
+    your_circuit.diagram('detslice-with-ops-svg', tick=range(6, 16), filter_coords=['D37', ])
+or the command line API like this:
+    stim diagram --in your_circuit_file.stim --type detslice-with-ops-svg --tick 6:16 --filter_coords D37 > output_image.svg
+
+This was discovered while analyzing a Z-basis reset (R) on:
+    qubit 6
+
+The collapse anti-commuted with these detectors/observables:
+    D37
+
+The backward-propagating error sensitivity for D37 was:
+    Z0
+    X2
+    Y3
+    Z4
+    Y6
+
+Circuit stack trace:
+    during TICK layer #12 of 13
+    at instruction #393 [which is R 6]
+
+Circuit visualization:
