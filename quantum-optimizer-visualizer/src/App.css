@@ -1,0 +1,77 @@
+.App {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+form {
+  margin-bottom: 20px;
+}
+
+form div {
+  margin-bottom: 10px;
+}
+
+label {
+  display: inline-block;
+  width: 200px;
+}
+
+input {
+  width: 50px;
+}
+
+button {
+  margin-top: 10px;
+}
+
+.optimization-results, .optimization-charts {
+  margin-top: 20px;
+}
+
+pre {
+  background-color: #f0f0f0;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.error {
+  color: red;
+}
+
+.matrix-container {
+  display: flex; /* Use flexbox to align items */
+  justify-content: space-between; /* Space between the two sections */
+  margin-top: 20px; /* Add some space above the matrices */
+}
+
+.matrix-section {
+  flex: 1; /* Allow each section to take equal space */
+  margin-right: 20px; /* Add some space between the two matrices */
+}
+
+.matrix-section:last-child {
+  margin-right: 0; /* Remove margin from the last section */
+}
+
+.matrix {
+  border-collapse: collapse;
+  width: 100%; /* Make the table take full width of its container */
+}
+
+.matrix td {
+  border: 1px solid #ddd;
+  padding: 0; /* Remove padding to ensure square shape */
+  width: 40px; /* Set a fixed width */
+  height: 40px; /* Set a fixed height to make it square */
+  text-align: center;
+}
+
+.matrix tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+.matrix tr:hover {
+  background-color: #ddd;
+}
